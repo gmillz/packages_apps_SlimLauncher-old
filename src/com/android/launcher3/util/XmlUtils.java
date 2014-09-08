@@ -47,9 +47,8 @@ public class XmlUtils {
         }
     }
 
-    public static final int
-    convertValueToList(CharSequence value, String[] options, int defaultValue)
-    {
+    public static int convertValueToList(
+            CharSequence value, String[] options, int defaultValue) {
         if (null != value) {
             for (int i = 0; i < options.length; i++) {
                 if (value.equals(options[i]))
@@ -60,9 +59,7 @@ public class XmlUtils {
         return defaultValue;
     }
 
-    public static final boolean
-    convertValueToBoolean(CharSequence value, boolean defaultValue)
-    {
+    public static boolean convertValueToBoolean(CharSequence value, boolean defaultValue) {
         boolean result = false;
 
         if (null == value)
@@ -76,9 +73,7 @@ public class XmlUtils {
         return result;
     }
 
-    public static final int
-    convertValueToInt(CharSequence charSeq, int defaultValue)
-    {
+    public static int convertValueToInt(CharSequence charSeq, int defaultValue) {
         if (null == charSeq)
             return defaultValue;
 
@@ -103,7 +98,7 @@ public class XmlUtils {
             if (index == (len - 1))
                 return 0;
 
-            char    c = nm.charAt(index + 1);
+            char c = nm.charAt(index + 1);
 
             if ('x' == c || 'X' == c) {
                 index += 2;
@@ -112,9 +107,7 @@ public class XmlUtils {
                 index++;
                 base = 8;
             }
-        }
-        else if ('#' == nm.charAt(index))
-        {
+        } else if ('#' == nm.charAt(index)) {
             index++;
             base = 16;
         }
@@ -195,8 +188,7 @@ public class XmlUtils {
      * @see #readListXml
      */
     public static final void writeListXml(List val, OutputStream out)
-            throws XmlPullParserException, java.io.IOException
-    {
+            throws XmlPullParserException, java.io.IOException {
         XmlSerializer serializer = Xml.newSerializer();
         serializer.setOutput(out, "utf-8");
         serializer.startDocument(null, true);
@@ -220,8 +212,7 @@ public class XmlUtils {
      * @see #readMapXml
      */
     public static final void writeMapXml(Map val, String name, XmlSerializer out)
-            throws XmlPullParserException, java.io.IOException
-    {
+            throws XmlPullParserException, java.io.IOException {
         if (val == null) {
             out.startTag(null, "null");
             out.endTag(null, "null");
@@ -258,9 +249,8 @@ public class XmlUtils {
      * @see #writeValueXml
      * @see #readListXml
      */
-    public static final void writeListXml(List val, String name, XmlSerializer out)
-            throws XmlPullParserException, java.io.IOException
-    {
+    public static void writeListXml(List val, String name, XmlSerializer out)
+            throws XmlPullParserException, java.io.IOException {
         if (val == null) {
             out.startTag(null, "null");
             out.endTag(null, "null");
@@ -282,7 +272,7 @@ public class XmlUtils {
         out.endTag(null, "list");
     }
 
-    public static final void writeSetXml(Set val, String name, XmlSerializer out)
+    public static void writeSetXml(Set val, String name, XmlSerializer out)
             throws XmlPullParserException, java.io.IOException {
         if (val == null) {
             out.startTag(null, "null");
@@ -314,7 +304,7 @@ public class XmlUtils {
      * @see #writeMapXml
      * @see #writeValueXml
      */
-    public static final void writeByteArrayXml(byte[] val, String name,
+    public static void writeByteArrayXml(byte[] val, String name,
                                                XmlSerializer out)
             throws XmlPullParserException, java.io.IOException {
 

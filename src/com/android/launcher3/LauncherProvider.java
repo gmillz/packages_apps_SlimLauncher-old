@@ -239,7 +239,7 @@ public class LauncherProvider extends ContentProvider {
     }
 
     /**
-     * @param Should we load the old db for upgrade? first run only.
+     *  Should we load the old db for upgrade? first run only.
      */
     synchronized public boolean justLoadedOldDb() {
         String spKey = LauncherAppState.getSharedPreferencesKey();
@@ -259,7 +259,7 @@ public class LauncherProvider extends ContentProvider {
     }
 
     /**
-     * @param workspaceResId that can be 0 to use default or non-zero for specific resource
+     * @param origWorkspaceResId that can be 0 to use default or non-zero for specific resource
      */
     synchronized public void loadDefaultFavoritesIfNecessary(int origWorkspaceResId) {
         String spKey = LauncherAppState.getSharedPreferencesKey();
@@ -1018,7 +1018,7 @@ public class LauncherProvider extends ContentProvider {
          * Loads the default set of favorite packages from an xml file.
          *
          * @param db The database to write the values into
-         * @param filterContainerId The specific container id of items to load
+         * @param workspaceResourceId The specific container id of items to load
          */
         private int loadFavorites(SQLiteDatabase db, int workspaceResourceId) {
             Intent intent = new Intent(Intent.ACTION_MAIN, null);

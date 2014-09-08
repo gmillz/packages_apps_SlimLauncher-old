@@ -1,8 +1,6 @@
 package com.android.launcher3.util;
 
-import android.content.Context;
 import android.content.SharedPreferences;
-import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.os.Looper;
 import android.util.ArrayMap;
 import android.util.Log;
@@ -16,13 +14,10 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -39,9 +34,10 @@ public class CustomSharedPreferences implements SharedPreferences {
 
     Map<String, Object> mMap;
     private int mDiskWritesInFlight = 0;
-    private boolean mLoaded;
+    private boolean mLoaded = false;
 
     private final Object mWritingToDiskLock = new Object();
+    private static final Object mContent = new Object();
     private final WeakHashMap<OnSharedPreferenceChangeListener, Object> mListeners =
             new WeakHashMap<OnSharedPreferenceChangeListener, Object>();
 
@@ -57,16 +53,16 @@ public class CustomSharedPreferences implements SharedPreferences {
         synchronized (this) {
             mLoaded = false;
         }
+        Log.d(TAG, "about to start thread");
         new Thread("CustomSharedPreferences-load") {
             public void run() {
-                synchronized (CustomSharedPreferences.this) {
-                    loadFromDiskLocked();
-                }
+                loadFromDiskLocked();
             }
         }.start();
     }
 
     private void loadFromDiskLocked() {
+        Log.d(TAG, "loadFromDiskLocked");
         if (mLoaded)
             return;
 
@@ -78,8 +74,11 @@ public class CustomSharedPreferences implements SharedPreferences {
         if (mFile.canRead()) {
             BufferedInputStream str = null;
             try {
+                Log.d(TAG, "creating stream");
                 str = new BufferedInputStream(new FileInputStream(mFile), 16*1024);
+                Log.d(TAG, "about to create map");
                 map = XmlUtils.readMapXml(str);
+                Log.d(TAG, "map created");
             } catch (FileNotFoundException e) {
                 e.printStackTrace();
             } catch (XmlPullParserException e) {
@@ -89,6 +88,7 @@ public class CustomSharedPreferences implements SharedPreferences {
             }
         }
         mLoaded = true;
+
         if (map != null) {
             mMap = map;
         } else {
@@ -105,6 +105,7 @@ public class CustomSharedPreferences implements SharedPreferences {
             try {
                 Thread.sleep(1000);
             } catch (InterruptedException e) {
+                e.printStackTrace();
             }
         }
     }
@@ -188,13 +189,15 @@ public class CustomSharedPreferences implements SharedPreferences {
     }
 
     @Override
-    public void registerOnSharedPreferenceChangeListener(OnSharedPreferenceChangeListener listener) {
-
+    public void registerOnSharedPreferenceChangeListener(
+            OnSharedPreferenceChangeListener listener) {
+        mListeners.put(listener, mContent);
     }
 
     @Override
-    public void unregisterOnSharedPreferenceChangeListener(OnSharedPreferenceChangeListener listener) {
-
+    public void unregisterOnSharedPreferenceChangeListener(
+            OnSharedPreferenceChangeListener listener) {
+        mListeners.remove(listener);
     }
 
     public final class CustomEditor implements Editor {
