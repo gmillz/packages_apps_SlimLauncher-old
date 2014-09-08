@@ -51,6 +51,7 @@ import android.util.Log;
 import android.util.SparseArray;
 import android.view.Choreographer;
 import android.view.Display;
+import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -65,11 +66,20 @@ import android.widget.TextView;
 import com.android.launcher3.FolderIcon.FolderRingAnimator;
 import com.android.launcher3.Launcher.CustomContentCallbacks;
 import com.android.launcher3.LauncherSettings.Favorites;
+import com.android.launcher3.settings.SettingsActivity;
+import com.android.launcher3.settings.SettingsProvider;
 
+import java.lang.reflect.Method;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+
+import org.metalev.multitouch.controller.MultiTouchController;
+import org.metalev.multitouch.controller.MultiTouchController.MultiTouchObjectCanvas;
+import org.metalev.multitouch.controller.MultiTouchController.PointInfo;
+import org.metalev.multitouch.controller.MultiTouchController.PositionAndScale;
 
 /**
  * The workspace is a wide area with a wallpaper and a finite number of pages.
@@ -79,7 +89,7 @@ import java.util.Iterator;
 public class Workspace extends SmoothPagedView
         implements DropTarget, DragSource, DragScroller, View.OnTouchListener,
         DragController.DragListener, LauncherTransitionable, ViewGroup.OnHierarchyChangeListener,
-        Insettable {
+        Insettable, MultiTouchObjectCanvas<Object> {
     private static final String TAG = "Launcher.Workspace";
 
     // Y rotation to apply to the workspace screens
@@ -93,12 +103,18 @@ public class Workspace extends SmoothPagedView
     private static final int ADJACENT_SCREEN_DROP_DURATION = 300;
     private static final int FLING_THRESHOLD_VELOCITY = 500;
 
+    private static final int MIN_MULTITOUCH_EVENT_INTERVAL = 500;
+    private static final int MIN_UP_DOWN_GESTURE_DISTANCE = 700;
+
     private static final float ALPHA_CUTOFF_THRESHOLD = 0.01f;
 
     // These animators are used to fade the children's outlines
     private ObjectAnimator mChildrenOutlineFadeInAnimation;
     private ObjectAnimator mChildrenOutlineFadeOutAnimation;
     private float mChildrenOutlineAlpha = 0;
+
+    private static final double ZOOM_SENSITIVITY = 1.6;
+    private static final double ZOOM_LOG_BASE_INV = 1.0 / Math.log(2.0 / ZOOM_SENSITIVITY);
 
     // These properties refer to the background protection gradient used for AllApps and Customize
     private ValueAnimator mBackgroundFadeInAnimation;
@@ -115,8 +131,22 @@ public class Workspace extends SmoothPagedView
     private final WallpaperManager mWallpaperManager;
     private IBinder mWindowToken;
 
+    private long mLastMultitouch = 0;
+    private boolean mMultitouchGestureDetected = false;
+
     private int mOriginalDefaultPage;
     private int mDefaultPage;
+
+    private MultiTouchController<Object> mMultiTouchController;
+
+    // gestures
+    private String mUpGestureAction;
+    private String mDownGestureAction;
+    private String mPinchGestureAction;
+    private String mSpreadGestureAction;
+    private String mDoubleTapGestureAction;
+
+    private GestureDetector mDoubleTapGesture;
 
     private ShortcutAndWidgetContainer mDragSourceInternal;
     private static boolean sAccessibilityEnabled;
@@ -207,6 +237,7 @@ public class Workspace extends SmoothPagedView
     private boolean mWorkspaceFadeInAdjacentScreens;
 
     WallpaperOffsetInterpolator mWallpaperOffset;
+    private boolean mScrollWallpaper;
     private Runnable mDelayedResizeRunnable;
     private Runnable mDelayedSnapToPageRunnable;
     private Point mDisplaySize = new Point();
@@ -302,6 +333,9 @@ public class Workspace extends SmoothPagedView
         // With workspace, data is available straight from the get-go
         setDataIsReady();
 
+        mScrollWallpaper = SettingsProvider.getBoolean(context,
+                SettingsProvider.KEY_SCROLL_WALLPAPER, true);
+
         mLauncher = (Launcher) context;
         final Resources res = getResources();
         mWorkspaceFadeInAdjacentScreens = res.getBoolean(R.bool.config_workspaceFadeAdjacentScreens);
@@ -321,6 +355,27 @@ public class Workspace extends SmoothPagedView
 
         setOnHierarchyChangeListener(this);
         setHapticFeedbackEnabled(false);
+
+        String gesture_def = context.getString(R.string.gesture_default);
+        mUpGestureAction = SettingsProvider.getString(context, SettingsProvider.UP_GESTURE_ACTION,
+                gesture_def);
+        mDownGestureAction = SettingsProvider.getString(context, SettingsProvider.DOWN_GESTURE_ACTION,
+                gesture_def);
+
+        mPinchGestureAction = SettingsProvider.getString(context, SettingsProvider.PINCH_GESTURE_ACTION,
+                gesture_def);
+        mSpreadGestureAction = SettingsProvider.getString(context, SettingsProvider.SPREAD_GESTURE_ACTION,
+                gesture_def);
+        mDoubleTapGestureAction = SettingsProvider.getString(context, SettingsProvider.DOUBLE_TAP_GESTURE_ACTION,
+                gesture_def);
+
+        mDoubleTapGesture = new GestureDetector(context, new GestureDetector.SimpleOnGestureListener() {
+            @Override
+            public boolean onDoubleTap(MotionEvent e) {
+                performGestureAction(mDoubleTapGestureAction, "double_tap");
+                return true;
+            }
+        });
 
         initWorkspace();
 
@@ -412,6 +467,8 @@ public class Workspace extends SmoothPagedView
         setClipToPadding(false);
         setChildrenDrawnWithCacheEnabled(true);
 
+        mMultiTouchController = new MultiTouchController<Object>(this, false);
+
         // This is a bit of a hack to account for the fact that we translate the workspace
         // up a bit, and still need to draw the background covering the whole screen.
         setMinScale(mOverviewModeShrinkFactor - 0.2f);
@@ -424,7 +481,7 @@ public class Workspace extends SmoothPagedView
             // In this case, we will skip drawing background protection
         }
 
-        mWallpaperOffset = new WallpaperOffsetInterpolator();
+        if (mScrollWallpaper) mWallpaperOffset = new WallpaperOffsetInterpolator();
         Display display = mLauncher.getWindowManager().getDefaultDisplay();
         display.getSize(mDisplaySize);
 
@@ -913,21 +970,34 @@ public class Workspace extends SmoothPagedView
 
     @Override
     public boolean onInterceptTouchEvent(MotionEvent ev) {
+        if (!mIsDragOccuring && mMultiTouchController.onTouchEvent(ev))
+            return true;
         switch (ev.getAction() & MotionEvent.ACTION_MASK) {
-        case MotionEvent.ACTION_DOWN:
-            mXDown = ev.getX();
-            mYDown = ev.getY();
-            mTouchDownTime = System.currentTimeMillis();
-            break;
-        case MotionEvent.ACTION_POINTER_UP:
-        case MotionEvent.ACTION_UP:
-            if (mTouchState == TOUCH_STATE_REST) {
-                final CellLayout currentPage = (CellLayout) getChildAt(mCurrentPage);
-                if (!currentPage.lastDownOnOccupiedCell()) {
-                    onWallpaperTap(ev);
+            case MotionEvent.ACTION_POINTER_DOWN:
+            case MotionEvent.ACTION_DOWN:
+                mXDown = ev.getX();
+                mYDown = ev.getY();
+                break;
+            case MotionEvent.ACTION_UP:
+                if (mTouchState == TOUCH_STATE_REST) {
+                    final CellLayout currentPage = (CellLayout) getChildAt(mCurrentPage);
+                    if (!currentPage.lastDownOnOccupiedCell()) {
+                        onWallpaperTap(ev);
+                    }
                 }
-            }
+                if (!mIsDragOccuring && mTouchState != TOUCH_STATE_SCROLLING && !mMultitouchGestureDetected) {
+                    final float y = ev.getY();
+                    final int deltaY = (int) (y - mLastMotionY);
+                    if (deltaY >= MIN_UP_DOWN_GESTURE_DISTANCE) {
+                        performGestureAction(mDownGestureAction, "down");
+                    } else if(deltaY <= -MIN_UP_DOWN_GESTURE_DISTANCE) {
+                        performGestureAction(mUpGestureAction, "up");
+                    }
+                }
+                mMultitouchGestureDetected = false;
+                break;
         }
+        mDoubleTapGesture.onTouchEvent(ev);
         return super.onInterceptTouchEvent(ev);
     }
 
@@ -1282,7 +1352,7 @@ public class Workspace extends SmoothPagedView
     @Override
     public void computeScroll() {
         super.computeScroll();
-        mWallpaperOffset.syncWithScroll();
+        if (mScrollWallpaper) mWallpaperOffset.syncWithScroll();
     }
 
     void showOutlines() {
@@ -1565,11 +1635,22 @@ public class Workspace extends SmoothPagedView
 
     @Override
     protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
-        if (mFirstLayout && mCurrentPage >= 0 && mCurrentPage < getChildCount()) {
+        if (mFirstLayout && mCurrentPage >= 0 &&
+                mCurrentPage < getChildCount() && mScrollWallpaper) {
             mWallpaperOffset.syncWithScroll();
             mWallpaperOffset.jumpToFinal();
         }
         super.onLayout(changed, left, top, right, bottom);
+    }
+
+    @Override
+    protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+        super.onSizeChanged(w, h, oldw, oldh);
+
+        // Center wallpaper if scrolling disabled
+        if (!mScrollWallpaper && mWindowToken != null) {
+            mWallpaperManager.setWallpaperOffsets(mWindowToken, 0f, 0.5f);
+        }
     }
 
     @Override
@@ -4484,5 +4565,82 @@ public class Workspace extends SmoothPagedView
 
     public void getLocationInDragLayer(int[] loc) {
         mLauncher.getDragLayer().getLocationInDragLayer(this, loc);
+    }
+
+    @Override
+    public Object getDraggableObjectAtPoint(PointInfo touchPoint) {
+        return this;
+    }
+
+    @Override
+    public void getPositionAndScale(Object obj,
+                                    PositionAndScale objPosAndScaleOut) {
+        objPosAndScaleOut.set(0.0f, 0.0f, true, 1.0f, false, 0.0f, 0.0f, false, 0.0f);
+
+    }
+
+    @Override
+    public boolean setPositionAndScale(Object obj,
+                                       PositionAndScale newObjPosAndScale, PointInfo touchPoint) {
+        double pinch = Math.round(Math.log(newObjPosAndScale.getScale()) * ZOOM_LOG_BASE_INV);
+        long delta = System.currentTimeMillis() - mLastMultitouch;
+        if (pinch < 0 && mLauncher.mState == Launcher.State.WORKSPACE &&
+                delta >= MIN_MULTITOUCH_EVENT_INTERVAL) {
+            performGestureAction(mPinchGestureAction, "pinch");
+            mLastMultitouch = System.currentTimeMillis();
+            mMultitouchGestureDetected = true;
+            return true;
+        } else if (pinch > 0 && mLauncher.mState == Launcher.State.WORKSPACE &&
+                delta >= MIN_MULTITOUCH_EVENT_INTERVAL) {
+            performGestureAction(mSpreadGestureAction, "spread");
+            mLastMultitouch = System.currentTimeMillis();
+            mMultitouchGestureDetected = true;
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    public void selectObject(Object obj, PointInfo touchPoint) {
+        //To change body of implemented methods use File | Settings | File Templates.
+    }
+
+    private void expandStatusBar() {
+        try {
+            Object service  = getContext().getSystemService("statusbar");
+            Class<?> statusbarManager = Class.forName("android.app.StatusBarManager");
+            Method expand = statusbarManager.getMethod("expandNotificationsPanel");
+            expand.invoke(service);
+        } catch(Exception e) {}
+    }
+
+    private void performGestureAction(String gestureAction, String gesture) {
+        if (gestureAction.equals("expand_status_bar")) {
+            Log.d(TAG, "Expanding status bar");
+            expandStatusBar();
+        } else if (gestureAction.equals("default_homescreen")) {
+            moveToDefaultScreen(true);
+        } else if (gestureAction.equals("open_app_drawer")) {
+            mLauncher.showAllApps(true, AppsCustomizePagedView.ContentType.Applications, true);
+        } else if (gestureAction.equals("show_previews")) {
+            enterOverviewMode();
+        } else if (gestureAction.equals("show_settings")) {
+            Intent preferences = new Intent().setClass(mLauncher, SettingsActivity.class);
+            preferences.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP
+                    | Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS);
+            mLauncher.startActivity(preferences);
+        } else if (gestureAction.equals("custom")) {
+            String uri = SettingsProvider.getString(getContext(),
+                    gesture + "_gesture_action_custom", "");
+            if (uri != "") {
+                try {
+                    Intent intent = Intent.parseUri(uri, 0);
+                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    mLauncher.startActivity(intent);
+                } catch (URISyntaxException e) {
+                    Log.e(TAG, "Unable to start hotword action " + gestureAction, e);
+                }
+            }
+        }
     }
 }

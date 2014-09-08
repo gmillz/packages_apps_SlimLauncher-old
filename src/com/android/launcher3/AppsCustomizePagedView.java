@@ -366,6 +366,7 @@ public class AppsCustomizePagedView extends PagedViewWithDraggableItems implemen
         // use for each page
         LauncherAppState app = LauncherAppState.getInstance();
         DeviceProfile grid = app.getDynamicGrid().getDeviceProfile();
+        grid.updateFromPreferences(getContext());
         mWidgetSpacingLayout.setPadding(mPageLayoutPaddingLeft, mPageLayoutPaddingTop,
                 mPageLayoutPaddingRight, mPageLayoutPaddingBottom);
         mCellCountX = (int) grid.allAppsNumCols;

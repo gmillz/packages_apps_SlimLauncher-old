@@ -10,6 +10,12 @@
         android:title="@string/show_search_bar_title"
         android:defaultValue="true" />
 
+    <CheckBoxPreference
+        android:key="scroll_wallpaper"
+        android:title="@string/scroll_wallpaper_title"
+        android:summary="@string/scroll_wallpaper_summary"
+        android:defaultValue="true"/>
+
     <com.android.launcher3.preference.DoubleNumberPickerPreference
         android:key="homescreen_grid"
         android:summary="@string/grid_size_summary"
@@ -30,10 +36,32 @@
         launcher:min="1"
         launcher:max="9" />
 
+    <PreferenceCategory android:title="@string/drawer_title" />
+
+    <com.android.launcher3.preference.DoubleNumberPickerPreference
+        android:key="drawer_grid"
+        android:summary="@string/grid_size_summary"
+        android:title="@string/grid_size_title"
+        launcher:max1="10"
+        launcher:max2="10"
+        launcher:min1="1"
+        launcher:min2="1"
+        launcher:pickerTitle1="@string/homescreen_workspace_rows_title"
+        launcher:pickerTitle2="@string/homescreen_workspace_columns_title" />
+
     <PreferenceCategory android:title="@string/general_title" />
 
     <com.android.launcher3.preference.SeekBarDialogPreference
         android:key="icon_size"
         android:title="@string/icon_size_title" />
+
+    <PreferenceScreen
+        android:key="gestures"
+        android:title="@string/gestures_title"
+        android:summary="@string/gestures_summary" />
+
+    <PreferenceScreen
+        android:key="backup_restore"
+        android:title="@string/backup_restore_title" />
 
 </PreferenceScreen>

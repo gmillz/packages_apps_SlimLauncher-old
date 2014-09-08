@@ -8,14 +8,9 @@ import android.util.Log;
 /**
  * Created by gmillz on 9/7/14.
  */
-public class SettingsProvider {
+public class SettingsProvider implements SettingsKeys {
 
-    private static final String SETTINGS_KEY = "com.android.launcher3_preferences";
-
-    public static final String KEY_SHOW_SEARCH_BAR = "show_search_bar";
-    public static final String KEY_HOMESCREEN_GRID = "homescreen_grid";
-    public static final String KEY_ICON_SIZE = "icon_size";
-    public static final String KEY_DOCK_ICONS = "dock_icon_count";
+    public static final String SETTINGS_KEY = "com.android.launcher3_preferences";
 
     public static SharedPreferences get(Context context) {
         return PreferenceManager.getDefaultSharedPreferences(context);
@@ -36,7 +31,7 @@ public class SettingsProvider {
 
     public static void putCellCountX(Context context, String key, int value) {
         String[] values = get(context).getString(key, "0|0").split("\\|");
-        put(context).putString(key, values[0] + "|" + value);
+        put(context).putString(key, values[0] + "|" + value).commit();
     }
 
     public static int getCellCountY(Context context, String key, int def) {
@@ -50,11 +45,15 @@ public class SettingsProvider {
 
     public static void putCellCountY(Context context, String key, int value) {
         String[] values = get(context).getString(key, "0|0").split("\\|");
-        put(context).putString(key, value + "|" + values[1]);
+        put(context).putString(key, value + "|" + values[1]).commit();
     }
 
     public static boolean getBoolean(Context context, String key, boolean defValue) {
         return get(context).getBoolean(key, defValue);
+    }
+
+    public static void putBoolean(Context context, String key, boolean value) {
+        put(context).putBoolean(key, value).commit();
     }
 
     public static int getInt(Context context, String key, int defValue) {
@@ -62,6 +61,14 @@ public class SettingsProvider {
     }
 
     public static void putInt(Context context, String key, int value) {
-        put(context).putInt(key, value);
+        put(context).putInt(key, value).commit();
+    }
+
+    public static String getString(Context context, String key, String defValue) {
+        return get(context).getString(key, defValue);
+    }
+
+    public static void putString(Context context, String key, String value) {
+        put(context).putString(key, value).commit();
     }
 }

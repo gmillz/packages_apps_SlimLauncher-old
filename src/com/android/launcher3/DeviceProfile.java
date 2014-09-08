@@ -63,8 +63,8 @@ public class DeviceProfile {
     int hotseatIconSizePx;
     int hotseatBarHeightPx;
     int hotseatAllAppsRank;
-    int allAppsNumRows;
-    int allAppsNumCols;
+    public int allAppsNumRows;
+    public int allAppsNumCols;
     int searchBarSpaceWidthPx;
     int searchBarSpaceMaxWidthPx;
     int searchBarSpaceHeightPx;
@@ -216,14 +216,6 @@ public class DeviceProfile {
                 CellLayout.LANDSCAPE : CellLayout.PORTRAIT);
         int pageIndicatorOffset =
                 resources.getDimensionPixelSize(R.dimen.apps_customize_page_indicator_offset);
-        if (isLandscape) {
-            allAppsNumRows = (availableHeightPx - pageIndicatorOffset - 4 * edgeMarginPx) /
-                    (iconSizePx + iconTextSizePx + 2 * edgeMarginPx);
-        } else {
-            allAppsNumRows = (int) numRows + 1;
-        }
-        allAppsNumCols = (availableWidthPx - padding.left - padding.right - 2 * edgeMarginPx) /
-                (iconSizePx + 2 * edgeMarginPx);
     }
 
     void updateFromPreferences(Context context) {
@@ -263,6 +255,16 @@ public class DeviceProfile {
         if (prefNumHotseatIcons > 0) {
             numHotseatIcons = prefNumHotseatIcons;
             hotseatAllAppsRank = (int) (numHotseatIcons / 2);
+        }
+
+        int prefAllAppsNumCols = SettingsProvider.getCellCountX(context, SettingsProvider.KEY_DRAWER_GRID, 0);
+        if (prefAllAppsNumCols > 0) {
+            allAppsNumCols = prefAllAppsNumCols;
+        }
+
+        int prefAllAppsNumRows = SettingsProvider.getCellCountY(context, SettingsProvider.KEY_DRAWER_GRID, 0);
+        if (prefAllAppsNumRows > 0) {
+            allAppsNumRows = prefAllAppsNumRows;
         }
     }
 
