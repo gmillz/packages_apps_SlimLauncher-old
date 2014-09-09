@@ -16,7 +16,7 @@
         android:summary="@string/scroll_wallpaper_summary"
         android:defaultValue="true"/>
 
-    <com.android.launcher3.preference.DoubleNumberPickerPreference
+    <com.slim.slimlauncher.preference.DoubleNumberPickerPreference
         android:key="homescreen_grid"
         android:summary="@string/grid_size_summary"
         android:title="@string/grid_size_title"
@@ -29,16 +29,16 @@
 
     <PreferenceCategory android:title="@string/dock_title" />
 
-    <com.android.launcher3.preference.NumberPickerPreference
+    <com.slim.slimlauncher.preference.NumberPickerPreference
         android:key="dock_icon_count"
         android:title="@string/dock_icons_title"
         android:summary="@string/dock_icons_summary"
         launcher:min="1"
-        launcher:max="9" />
+        launcher:max="7" />
 
     <PreferenceCategory android:title="@string/drawer_title" />
 
-    <com.android.launcher3.preference.DoubleNumberPickerPreference
+    <com.slim.slimlauncher.preference.DoubleNumberPickerPreference
         android:key="drawer_grid"
         android:summary="@string/grid_size_summary"
         android:title="@string/grid_size_title"
@@ -51,11 +51,11 @@
 
     <PreferenceCategory android:title="@string/general_title" />
 
-    <com.android.launcher3.preference.SeekBarDialogPreference
+    <com.slim.slimlauncher.preference.SeekBarDialogPreference
         android:key="icon_size"
         android:title="@string/icon_size_title"
-        launcher:max="150"
-        launcher:min="20"
+        launcher:max="130"
+        launcher:min="70"
         launcher:defaultValue="100"/>
 
     <PreferenceScreen

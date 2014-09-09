@@ -1,6 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+
+    <string name="slim_application_name">SlimLauncher</string>
+
     <string name="google_title">Google</string>
+
+    <!-- Text for default screen button -->
+    <string name="default_screen_button_text">Default Screen</string>
+
+    <string name="launcher_settings_title">Launcher settings</string>
+    <string name="error_message_title">Error</string>
 
     <!-- Homescreen -->
     <string name="homescreen_title">Homescreen</string>
