@@ -22,7 +22,10 @@ import android.animation.AnimatorSet;
 import android.animation.TimeInterpolator;
 import android.animation.ValueAnimator;
 import android.animation.ValueAnimator.AnimatorUpdateListener;
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.res.Resources;
 import android.content.res.TypedArray;
 import android.graphics.Bitmap;
@@ -692,6 +695,14 @@ public class CellLayout extends ViewGroup {
             Workspace workspace = (Workspace) getParent();
             mCellInfo.screenId = workspace.getIdForScreen(this);
         }
+        IntentFilter filter = new IntentFilter(NotificationListener.ACTION_NOTIFICATION_UPDATE);
+        getContext().registerReceiver(mNotificationReceiver, filter);
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        super.onDetachedFromWindow();
+        getContext().unregisterReceiver(mNotificationReceiver);
     }
 
     public void setTagToCellInfoForPoint(int touchX, int touchY) {
@@ -3319,4 +3330,30 @@ out:            for (int i = x; i < x + spanX - 1 && x < xCount; i++) {
     public boolean lastDownOnOccupiedCell() {
         return mLastDownOnOccupiedCell;
     }
+
+    BroadcastReceiver mNotificationReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String action = intent.getAction();
+            if (NotificationListener.ACTION_NOTIFICATION_UPDATE.equals(action)) {
+                Log.d(TAG, "notification received");
+                String packageName = intent.getStringExtra("packageName");
+                int count = intent.getIntExtra("count", 0);
+                int id = intent.getIntExtra("id", -1);
+                for (int i = 0; i < mShortcutsAndWidgets.getChildCount(); i++) {
+                    View v =  mShortcutsAndWidgets.getChildAt(i);
+                    if (v instanceof BubbleTextView) {
+                        BubbleTextView btv = (BubbleTextView) v;
+                        final ShortcutInfo info = (ShortcutInfo) v.getTag();
+                        final String pkgName = info.getPackageName(info.intent);
+                        if (pkgName.contains(packageName)) {
+                            btv.setNotificationCount(count, id);
+                        } else if (id == -1) {
+                            btv.setNotificationCount(0, -1);
+                        }
+                    }
+                }
+            }
+        }
+    };
 }

@@ -477,6 +477,9 @@ public class Launcher extends Activity
         unlockScreenOrientation(true);
 
         showFirstRunCling();
+
+        IntentFilter iff = new IntentFilter(NotificationListener.ACTION_NOTIFICATION_UPDATE);
+        registerReceiver(mNotificationReceiver, iff);
     }
 
     protected void onUserLeaveHint() {
@@ -927,6 +930,13 @@ public class Launcher extends Activity
         }
         mWorkspace.updateInteractionForState();
         mWorkspace.onResume();
+
+        mHandler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                startService(new Intent(Launcher.this, NotificationListener.class));
+            }
+        }, 2000);
     }
 
     @Override
@@ -4500,6 +4510,34 @@ public class Launcher extends Activity
                 }
             }.start();
         }
+    }
+
+    BroadcastReceiver mNotificationReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String action = intent.getAction();
+            if (NotificationListener.ACTION_NOTIFICATION_UPDATE.equals(action)) {
+                invalidate();
+            }
+        }
+    };
+
+    private void invalidate() {
+        new AsyncTask<Void, Void, Void>() {
+            @Override
+            protected Void doInBackground(Void... params) {
+                ArrayList<CellLayout> a = (ArrayList<CellLayout>)
+                        mWorkspace.getWorkspaceAndHotseatCellLayouts();
+                for (CellLayout o : a) {
+                    ViewGroup layout = o.getShortcutsAndWidgets();
+                    int childCount = layout.getChildCount();
+                    for (int i = 0; i < childCount; i++) {
+                        layout.getChildAt(i).postInvalidate();
+                    }
+                }
+                return null;
+            }
+        }.execute();
     }
 }
 

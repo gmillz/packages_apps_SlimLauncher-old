@@ -342,4 +342,9 @@ final class Utilities {
                     "or use the exported attribute for this activity.", e);
         }
     }
+
+    public static String getPackageNameFromView(View v) {
+        ShortcutInfo si = (ShortcutInfo) v.getTag();
+        return si.getPackageName(si.getIntent());
+    }
 }

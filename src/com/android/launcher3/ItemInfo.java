@@ -20,6 +20,7 @@ import android.content.ContentValues;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.util.Log;
+import android.util.SparseArray;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -102,7 +103,11 @@ class ItemInfo {
      */
     int[] dropPos = null;
 
+    int mNotificationCount;
+    SparseArray<Integer> mCounts;
+
     ItemInfo() {
+        mCounts = new SparseArray<Integer>();
     }
 
     ItemInfo(ItemInfo info) {
@@ -114,12 +119,29 @@ class ItemInfo {
         screenId = info.screenId;
         itemType = info.itemType;
         container = info.container;
+
+        mNotificationCount = info.mNotificationCount;
+        mCounts = info.mCounts;
+
         // tempdebug:
         LauncherModel.checkItemInfo(this);
     }
 
     protected Intent getIntent() {
         throw new RuntimeException("Unexpected Intent");
+    }
+
+    static String getPackageName(Intent intent) {
+        if (intent != null) {
+            String packageName = intent.getPackage();
+            if (packageName == null && intent.getComponent() != null) {
+                packageName = intent.getComponent().getPackageName();
+            }
+            if (packageName != null) {
+                return packageName;
+            }
+        }
+        return "";
     }
 
     /**

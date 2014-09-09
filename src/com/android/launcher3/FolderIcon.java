@@ -30,6 +30,7 @@ import android.graphics.drawable.Drawable;
 import android.os.Looper;
 import android.os.Parcelable;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
@@ -40,9 +41,9 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import com.android.launcher3.R;
 import com.android.launcher3.DropTarget.DragObject;
 import com.android.launcher3.FolderInfo.FolderListener;
+import com.android.launcher3.settings.SettingsProvider;
 
 import java.util.ArrayList;
 
@@ -56,6 +57,8 @@ public class FolderIcon extends LinearLayout implements FolderListener {
     private static boolean sStaticValuesDirty = true;
 
     private CheckLongPressHelper mLongPressHelper;
+
+    private int mCount;
 
     // The number of icons to display in the
     private static final int NUM_ITEMS_IN_PREVIEW = 3;
@@ -163,6 +166,9 @@ public class FolderIcon extends LinearLayout implements FolderListener {
 
         icon.mFolderRingAnimator = new FolderRingAnimator(launcher, icon);
         folderInfo.addListener(icon);
+
+        icon.mFolderName.setNotificationCount(icon.mInfo.mNotificationCount);
+        icon.mCount = icon.mInfo.mNotificationCount;
 
         return icon;
     }
@@ -582,6 +588,65 @@ public class FolderIcon extends LinearLayout implements FolderListener {
         } else {
             drawPreviewItem(canvas, mAnimParams);
         }
+
+        Log.d("FolderIcon", "mCounts=" + mCount);
+        Drawable badge = new Badge(getContext(), mCount).getDrawable();
+        canvas.translate(getTranslationX(this, badge), getTranslationY(this, badge));
+        badge.setBounds(0, 0, badge.getIntrinsicWidth(), badge.getIntrinsicHeight());
+        badge.draw(canvas);
+    }
+
+    private float getTranslationX(View bg, Drawable d) {
+        if (SettingsProvider.getInt(getContext(), SettingsProvider.KEY_BADGE_POSITION, 1) == 0
+                || SettingsProvider.getInt(getContext(),
+                SettingsProvider.KEY_BADGE_POSITION, 1) == 3) {
+            return bg.getX();
+        }
+
+        return bg.getX()
+                + bg.getWidth()
+                - d.getIntrinsicWidth();
+    }
+
+    private float getTranslationY(View bg, Drawable d) {
+        if (SettingsProvider.getInt(getContext(), SettingsProvider.KEY_BADGE_POSITION, 1) == 0
+                || SettingsProvider.getInt(getContext(),
+                SettingsProvider.KEY_BADGE_POSITION, 1) == 1) {
+            return bg.getY()
+                    + d.getIntrinsicHeight() / 2;
+        }
+
+        return bg.getY()
+                + bg.getHeight()
+                - d.getIntrinsicHeight();
+    }
+
+    public void setNotificationCount(int count, int id) {
+        Integer idCount = mInfo.mCounts.get(id);
+        if (idCount != null) {
+            mInfo.mNotificationCount -= idCount;
+            mInfo.mCounts.remove(id);
+        }
+
+        if (id == -1) {
+            mInfo.mCounts.clear();
+            mInfo.mNotificationCount = 0;
+        }
+
+        if (count > 0) {
+            mInfo.mNotificationCount += count;
+            mInfo.mCounts.put(id, new Integer(count));
+        }
+
+        if (mInfo.mCounts.size() <= 0)
+            mInfo.mNotificationCount = 0;
+
+        setNotificationCount(mInfo.mNotificationCount);
+    }
+
+    public void setNotificationCount(int count) {
+        mCount = count;
+        postInvalidate();
     }
 
     private void animateFirstItem(final Drawable d, int duration, final boolean reverse,

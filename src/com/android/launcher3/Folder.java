@@ -20,7 +20,10 @@ import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.animation.ObjectAnimator;
 import android.animation.PropertyValuesHolder;
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.res.Resources;
 import android.graphics.PointF;
 import android.graphics.Rect;
@@ -195,6 +198,18 @@ public class Folder extends LinearLayout implements DragSource, View.OnClickList
         mFolderName.setInputType(mFolderName.getInputType() |
                 InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS | InputType.TYPE_TEXT_FLAG_CAP_WORDS);
         mAutoScrollHelper = new FolderAutoScrollHelper(mScrollView);
+
+        IntentFilter filter = new IntentFilter(NotificationListener.ACTION_NOTIFICATION_UPDATE);
+        getContext().registerReceiver(mNotificationReceiver, filter);
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        super.onDetachedFromWindow();
+        try {
+            getContext().unregisterReceiver(mNotificationReceiver);
+        } catch (Exception e) {
+        }
     }
 
     private ActionMode.Callback mActionModeCallback = new ActionMode.Callback() {
@@ -244,11 +259,28 @@ public class Folder extends LinearLayout implements DragSource, View.OnClickList
             mCurrentDragView = v;
 
             mContent.removeView(mCurrentDragView);
+            removeItemNotificationCounts(item);
             mInfo.remove(mCurrentDragInfo);
+            mFolderIcon.invalidate();
             mDragInProgress = true;
             mItemAddedBackToSelfViaIcon = false;
         }
         return true;
+    }
+
+    private void removeItemNotificationCounts(ItemInfo item) {
+        for (int i = 0; i < item.mCounts.size(); i++) {
+            int id = item.mCounts.keyAt(i);
+            mFolderIcon.setNotificationCount(0, id);
+        }
+    }
+
+    private void addItemNotificationCounts(ItemInfo item) {
+        for (int i = 0; i < item.mCounts.size(); i++) {
+            int id = item.mCounts.keyAt(i);
+            int count = item.mCounts.valueAt(i);
+            mFolderIcon.setNotificationCount(count, id);
+        }
     }
 
     public boolean isEditingName() {
@@ -538,6 +570,7 @@ public class Folder extends LinearLayout implements DragSource, View.OnClickList
         textView.setTag(item);
         textView.setTextColor(getResources().getColor(R.color.folder_items_text_color));
         textView.setShadowsEnabled(false);
+        textView.setNotificationCount(item.mNotificationCount);
 
         textView.setOnClickListener(this);
         textView.setOnLongClickListener(this);
@@ -558,6 +591,7 @@ public class Folder extends LinearLayout implements DragSource, View.OnClickList
         boolean insert = false;
         textView.setOnKeyListener(new FolderKeyEventListener());
         mContent.addViewToCellLayout(textView, insert ? 0 : -1, (int)item.id, lp, true);
+        addItemNotificationCounts(item);
         return true;
     }
 
@@ -1126,6 +1160,7 @@ public class Folder extends LinearLayout implements DragSource, View.OnClickList
             mItemsInvalidated = true;
             setupContentDimensions(getItemCount());
             mSuppressOnAdd = true;
+            addItemNotificationCounts(item);
         }
         mInfo.add(item);
     }
@@ -1171,6 +1206,10 @@ public class Folder extends LinearLayout implements DragSource, View.OnClickList
         }
         if (getItemCount() <= 1) {
             replaceFolderWithFinalItem();
+        }
+        for (int i = 0; i < item.mCounts.size(); i++) {
+            int id = item.mCounts.keyAt(i);
+            mFolderIcon.setNotificationCount(0, id);
         }
     }
 
@@ -1223,4 +1262,30 @@ public class Folder extends LinearLayout implements DragSource, View.OnClickList
     public void getHitRectRelativeToDragLayer(Rect outRect) {
         getHitRect(outRect);
     }
+
+    BroadcastReceiver mNotificationReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String action = intent.getAction();
+            if (NotificationListener.ACTION_NOTIFICATION_UPDATE.equals(action)) {
+                Log.d(TAG, "notification received");
+                String packageName = intent.getStringExtra("packageName");
+                int count = intent.getIntExtra("count", 0);
+                int id = intent.getIntExtra("id", -1);
+                final ShortcutAndWidgetContainer shortuctsAndWidgets = mContent.getShortcutsAndWidgets();
+                for (int i = 0; i < shortuctsAndWidgets.getChildCount(); i++) {
+                    final View v = shortuctsAndWidgets.getChildAt(i);
+                    if (v instanceof BubbleTextView) {
+                        final ShortcutInfo info = (ShortcutInfo) v.getTag();
+                        final BubbleTextView bubbleTextView = (BubbleTextView) v;
+                        if (info.getPackageName(info.intent).contains(packageName)) {
+                            bubbleTextView.setNotificationCount(count, id);
+                            mFolderIcon.setNotificationCount(count, id);
+                        } else if (id == -1)
+                            bubbleTextView.setNotificationCount(0, -1);
+                    }
+                }
+            }
+        }
+    };
 }

@@ -50,6 +50,16 @@ public class SettingsFragment extends PreferenceFragment {
                 return true;
             }
         });
+        PreferenceScreen notificationBadges = (PreferenceScreen)
+                findPreference("notification_badges");
+        notificationBadges.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
+            @Override
+            public boolean onPreferenceClick(Preference preference) {
+                getFragmentManager().beginTransaction().replace(
+                        android.R.id.content, new BadgeFragment()).commit();
+                return true;
+            }
+        });
 
 
         if (grid != null) {

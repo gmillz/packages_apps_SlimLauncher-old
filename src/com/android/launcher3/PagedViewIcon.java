@@ -16,12 +16,15 @@
 
 package com.android.launcher3;
 
+import android.content.ComponentName;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Region;
 import android.graphics.Region.Op;
+import android.graphics.drawable.Drawable;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.util.TypedValue;
 import android.widget.TextView;
 
@@ -35,12 +38,16 @@ public class PagedViewIcon extends TextView {
         void iconPressed(PagedViewIcon icon);
     }
 
+    private int mCount;
+
     @SuppressWarnings("unused")
     private static final String TAG = "PagedViewIcon";
     private static final float PRESS_ALPHA = 0.4f;
 
     private PagedViewIcon.PressedCallback mPressedCallback;
     private boolean mLockDrawableState = false;
+
+    private int notificationBadgePosition = 0;
 
     private Bitmap mIcon;
 
@@ -125,5 +132,70 @@ public class PagedViewIcon extends TextView {
                 BubbleTextView.SHADOW_SMALL_COLOUR);
         super.draw(canvas);
         canvas.restore();
+
+        Log.d("TEMP", "mCount=" + mCount);
+        drawBadge(canvas);
+    }
+
+    public void setNotificationCount(int count, int id) {
+        ItemInfo info = (ItemInfo) getTag();
+        Integer idCount = info.mCounts.get(id);
+        if (idCount != null) {
+            info.mNotificationCount -= idCount;
+            info.mCounts.remove(id);
+        }
+        if (id == -1) {
+            info.mCounts.clear();
+            info.mNotificationCount = 0;
+        }
+        if (count > 0) {
+            info.mNotificationCount += count;
+            info.mCounts.put(id, count);
+        }
+        if (info.mCounts.size() <= 0) {
+            info.mNotificationCount = 0;
+        }
+        setNotificationCount(info.mNotificationCount);
+    }
+
+    public void setNotificationCount(int count) {
+        mCount = count;
+        postInvalidate();
+    }
+
+    private void drawBadge(Canvas c) {
+        if (mCount != 0) {
+            Drawable d = new Badge(getContext(), mCount).getDrawable();
+            d.setBounds(0, 0, d.getIntrinsicWidth(), d.getIntrinsicHeight());
+            c.translate(getTranslationX(d), getTranslationY(d));
+            d.draw(c);
+        }
+    }
+
+    private float getTranslationX(Drawable d) {
+        if (notificationBadgePosition == 0
+                || notificationBadgePosition == 3) {
+            return getScrollX()
+                    + (getWidth() / 2)
+                    - (getCompoundDrawables()[1].getIntrinsicWidth() / 2);
+        }
+
+        return getScrollX()
+                + (getWidth() / 2)
+                + (getCompoundDrawables()[1].getIntrinsicWidth() / 2)
+                - d.getIntrinsicWidth();
+    }
+
+    private float getTranslationY(Drawable d) {
+        if (notificationBadgePosition == 0
+                || notificationBadgePosition == 1) {
+            return getScrollY()
+                    + getCompoundDrawablePadding() * 2;
+        }
+
+        return getScrollY()
+                + (getCompoundDrawablePadding() * 2)
+                + getCompoundDrawables()[1].getIntrinsicHeight()
+                - d.getIntrinsicHeight();
     }
 }

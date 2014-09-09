@@ -43,4 +43,8 @@
     <string name="select_custom_app_title">Select custom app</string>
     <string name="select_custom_activity_title">Select custom activity</string>
 
+    <!-- Notification Badges -->
+    <string name="notification_badges_title">Notification Badges</string>
+    <string name="enable_badges_title">Enable badges</string>
+
 </resources>

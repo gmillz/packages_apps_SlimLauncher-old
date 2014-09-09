@@ -16,6 +16,7 @@
 
 package com.android.launcher3;
 
+import android.content.ClipData;
 import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
@@ -26,6 +27,7 @@ import android.graphics.Region;
 import android.graphics.Region.Op;
 import android.graphics.drawable.Drawable;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.util.TypedValue;
 import android.view.MotionEvent;
 import android.widget.TextView;
@@ -65,6 +67,10 @@ public class BubbleTextView extends TextView {
 
     private boolean mStayPressed;
     private CheckLongPressHelper mLongPressHelper;
+
+    private int mCount;
+
+    private int notificationBadgePosition = 1;
 
     public BubbleTextView(Context context) {
         super(context);
@@ -334,6 +340,74 @@ public class BubbleTextView extends TextView {
         getPaint().setShadowLayer(SHADOW_SMALL_RADIUS, 0.0f, 0.0f, SHADOW_SMALL_COLOUR);
         super.draw(canvas);
         canvas.restore();
+
+        Drawable d = getCompoundDrawables()[1];
+        if (d != null)
+            drawBadge(canvas);
+    }
+
+    public void setNotificationCount(int count, int id) {
+        ItemInfo info = (ItemInfo) getTag();
+        Integer idCount = info.mCounts.get(id);
+        if (idCount != null) {
+            info.mNotificationCount -= idCount;
+            info.mCounts.remove(id);
+        }
+        if (id == -1) {
+            info.mCounts.clear();
+            info.mNotificationCount = 0;
+        }
+
+        if (count > 0) {
+            info.mNotificationCount += count;
+            info.mCounts.put(id, new Integer(count));
+        }
+
+        if (info.mCounts.size() <= 0)
+            info.mNotificationCount = 0;
+
+        setNotificationCount(info.mNotificationCount);
+
+    }
+
+    public void setNotificationCount(int count) {
+        mCount = count;
+    }
+
+    private void drawBadge(Canvas c) {
+        if (mCount != 0) {
+            Drawable d = new Badge(getContext(), mCount).getDrawable();
+            d.setBounds(0, 0, d.getIntrinsicWidth(), d.getIntrinsicHeight());
+            c.translate(getTranslationX(d), getTranslationY(d));
+            d.draw(c);
+        }
+    }
+
+    private float getTranslationX(Drawable d) {
+        if (notificationBadgePosition == 0
+                || notificationBadgePosition == 3) {
+            return getScrollX()
+                    + (getWidth() / 2)
+                    - (getCompoundDrawables()[1].getIntrinsicWidth() / 2);
+        }
+
+        return getScrollX()
+                + (getWidth() / 2)
+                + (getCompoundDrawables()[1].getIntrinsicWidth() / 2)
+                - d.getIntrinsicWidth();
+    }
+
+    private float getTranslationY(Drawable d) {
+        if (notificationBadgePosition == 0
+                || notificationBadgePosition == 1) {
+            return getScrollY()
+                    + getCompoundDrawablePadding() * 2;
+        }
+
+        return getScrollY()
+                + (getCompoundDrawablePadding() * 2)
+                + getCompoundDrawables()[1].getIntrinsicHeight()
+                - d.getIntrinsicHeight();
     }
 
     @Override

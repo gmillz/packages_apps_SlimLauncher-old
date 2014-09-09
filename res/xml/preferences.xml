@@ -64,4 +64,8 @@
         android:key="backup_restore"
         android:title="@string/backup_restore_title" />
 
+    <PreferenceScreen
+        android:key="notification_badges"
+        android:title="@string/notification_badges_title" />
+
 </PreferenceScreen>

@@ -23,6 +23,7 @@ import android.appwidget.AppWidgetManager;
 import android.appwidget.AppWidgetProviderInfo;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.content.res.Resources;
@@ -850,6 +851,9 @@ public class AppsCustomizePagedView extends PagedViewWithDraggableItems implemen
         }
         mDeferredPrepareLoadWidgetPreviewsTasks.clear();
         mForceDrawAllChildrenNextFrame = !toWorkspace;
+
+        // call startService on NotificationListener to force an update to be broadcast to icons
+        getContext().startService(new Intent(getContext(), NotificationListener.class));
     }
 
     @Override
